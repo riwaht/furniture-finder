@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react'; 
+import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, TextInput } from 'react-native'; 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useFavorites } from '../context/FavoritesContext'; // Import useFavorites
+import { useFavorites } from '../context/FavoritesContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -21,12 +21,13 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 export default function HomeScreen() {
   const { logout } = useAuth();
   const { theme } = useTheme();
-  const { addFavorite, removeFavorite, isFavorite } = useFavorites(); // Get favorites functions
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const navigation = useNavigation<NavigationProp>();
 
   const [furnitureItems, setFurnitureItems] = useState<FurnitureItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState(''); 
 
   useEffect(() => {
     const fetchFurniture = async () => {
@@ -47,6 +48,19 @@ export default function HomeScreen() {
 
     fetchFurniture();
   }, []);
+
+  // Filter furniture items based on search query
+  const filteredFurniture = useMemo(() => {
+    if (!searchQuery) {
+      return furnitureItems;
+    }
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return furnitureItems.filter(item =>
+      item.title.toLowerCase().includes(lowercasedQuery) ||
+      item.description.toLowerCase().includes(lowercasedQuery)
+    );
+  }, [furnitureItems, searchQuery]); 
+
 
   const handleLogout = async () => {
     await logout();
@@ -70,11 +84,14 @@ export default function HomeScreen() {
   const buttonBg = theme === 'light' ? 'bg-blue-500' : 'bg-blue-700';
   const logoutButtonBg = theme === 'light' ? 'bg-red-500' : 'bg-red-700';
   const activityIndicatorColor = theme === 'light' ? "#0000ff" : "#ffffff";
+  const searchInputBg = theme === 'light' ? 'bg-gray-200' : 'bg-gray-700';
+  const searchInputPlaceholder = theme === 'light' ? 'text-gray-500' : 'text-gray-400';
+  const searchInputBorder = theme === 'light' ? 'border-gray-300' : 'border-gray-600';
 
 
   const renderFurnitureItem = ({ item }: { item: FurnitureItem }) => (
     <TouchableOpacity
-      className={`${cardBg} p-4 mb-4 rounded-lg shadow-md relative`} // Added relative for absolute positioning of favorite icon
+      className={`${cardBg} p-4 mb-4 rounded-lg shadow-md relative`}
       onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
     >
       <Image
@@ -88,9 +105,8 @@ export default function HomeScreen() {
         {item.description}
       </Text>
 
-      {/* Favorite Button */}
       <TouchableOpacity
-        className="absolute top-2 right-2 p-2 rounded-full bg-white/70" // Semi-transparent background
+        className="absolute top-2 right-2 p-2 rounded-full bg-white/70"
         onPress={() => handleToggleFavorite(item.id)}
       >
         <Text className="text-2xl">
@@ -132,13 +148,30 @@ export default function HomeScreen() {
       <View className="flex-1 p-4">
         <Text className={`text-2xl font-bold mb-6 text-center ${textPrimary}`}>Furniture Catalog</Text>
 
-        <FlatList
-          data={furnitureItems}
-          renderItem={renderFurnitureItem}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
+        {/* Search Bar */}
+        <TextInput
+          className={`w-full p-3 rounded-lg border ${searchInputBorder} mb-4 ${searchInputBg} ${textPrimary}`}
+          placeholder="Search furniture..."
+          placeholderTextColor={theme === 'light' ? '#6B7280' : '#9CA3AF'} // Tailwind text-gray-500 / text-gray-400
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
+
+        {/* Display message if no items found */}
+        {filteredFurniture.length === 0 && !loading && !error ? (
+          <View className="flex-1 justify-center items-center">
+            <Text className={`text-lg ${textSecondary}`}>No furniture found matching your search.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredFurniture} // Use filteredFurniture here
+            renderItem={renderFurnitureItem}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
 
         <View className="flex-row justify-around mt-4 pb-4">
           <TouchableOpacity
