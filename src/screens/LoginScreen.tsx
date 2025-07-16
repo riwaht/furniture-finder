@@ -20,7 +20,7 @@ export default function LoginScreen() {
     }
 
     if (email === 'test@example.com' && password === '123456') {
-      await login();
+      await login(email);
     } else {
       Alert.alert('Invalid Credentials', 'Email or password is incorrect.');
     }
