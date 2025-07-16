@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, Image, ActivityIndicator, ScrollView, Alert, TouchableOpacity } from 'react-native'; // Import TouchableOpacity
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../context/ThemeContext'; // Import useTheme
+import { useTheme } from '../context/ThemeContext';
+import { useFavorites } from '../context/FavoritesContext'; // Import useFavorites
 
-type ProductDetail = {
+type ProductDetailType = {
   id: number;
   title: string;
   description: string;
@@ -24,9 +25,10 @@ type ProductDetailScreenRouteProp = RouteProp<RootStackParamList, 'ProductDetail
 export default function ProductDetailScreen() {
   const route = useRoute<ProductDetailScreenRouteProp>();
   const { productId } = route.params;
-  const { theme } = useTheme(); // Get theme from context
+  const { theme } = useTheme();
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites(); // Get favorites functions
 
-  const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [product, setProduct] = useState<ProductDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export default function ProductDetailScreen() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: ProductDetail = await response.json();
+        const data: ProductDetailType = await response.json();
         setProduct(data);
       } catch (e: any) {
         console.error("Failed to fetch product details:", e);
@@ -50,6 +52,16 @@ export default function ProductDetailScreen() {
 
     fetchProductDetails();
   }, [productId]);
+
+  const handleToggleFavorite = () => {
+    if (product) { // Ensure product is loaded before toggling
+      if (isFavorite(product.id)) {
+        removeFavorite(product.id);
+      } else {
+        addFavorite(product.id);
+      }
+    }
+  };
 
   // Dynamic colors based on theme
   const containerBg = theme === 'light' ? 'bg-white' : 'bg-gray-900';
@@ -88,11 +100,21 @@ export default function ProductDetailScreen() {
   return (
     <SafeAreaView className={`flex-1 ${containerBg}`}>
       <ScrollView className="flex-1 p-4">
-        <Image
-          source={{ uri: product.images && product.images.length > 0 ? product.images[0] : product.thumbnail }}
-          className="w-full h-64 rounded-lg mb-4"
-          resizeMode="contain"
-        />
+        <View className="relative"> 
+          <Image
+            source={{ uri: product.images && product.images.length > 0 ? product.images[0] : product.thumbnail }}
+            className="w-full h-64 rounded-lg mb-4"
+            resizeMode="contain"
+          />
+          <TouchableOpacity
+            className="absolute top-2 right-2 p-2 rounded-full bg-white/70"
+            onPress={handleToggleFavorite}
+          >
+            <Text className="text-3xl">
+              {isFavorite(product.id) ? '❤️' : '🤍'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <Text className={`text-3xl font-bold mb-2 ${textPrimary}`}>{product.title}</Text>
 
